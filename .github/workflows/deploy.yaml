@@ -1,0 +1,83 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  before_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frontend code
+        uses: actions/checkout@v3
+
+      # Configuração do Node.js para o frontend
+      - name: Set up Node.js for frontend
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Run linter on frontend (opcional)
+        run: |
+          cd frontend
+          npm run lint
+
+      # Checkout do repositório do backend
+      - name: Checkout backend repository
+        uses: actions/checkout@v3
+        with:
+          repository: EstherMart/devopscaseback
+          token: ${{ secrets.GITHUB_TOKEN }} 
+
+      # Configuração do Ruby para o backend
+      - name: Set up Ruby for backend
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7.7'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          gem install bundler
+          bundle install
+
+      - name: Run backend linter (opcional)
+        run: |
+          cd backend
+          rubocop
+
+      - name: Run tests for backend (opcional)
+        run: |
+          cd backend
+          bundle exec rspec
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: before_deploy
+    steps:
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy frontend to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd frontend
+          vercel --prod --token $VERCEL_TOKEN
+
+
+  after_deploy:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Post-deploy cleanup (opcional)
+        run: echo "Deploy finished. Add any cleanup steps here if needed."
+
+      - name: Notify success (opcional)
+        run: echo "Frontend and backend deployed successfully!"
